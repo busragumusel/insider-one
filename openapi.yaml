@@ -1,0 +1,481 @@
+openapi: 3.0.3
+info:
+  title: Insider One Notification API
+  version: 1.0.0
+security:
+  - ApiKeyAuth: []
+paths:
+  /notifications:
+    post:
+      summary: Create a notification
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRequest'
+            example:
+              recipient: "+905551234567"
+              channel: sms
+              content: Flash sale starts now
+              priority: high
+      responses:
+        '201':
+          description: Notification accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    get:
+      summary: List notifications
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Channel'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListEnvelope'
+  /notifications/batches:
+    post:
+      summary: Create a batch of notifications
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationBatchRequest'
+            example:
+              idempotencyKey: campaign-2026-06-22
+              notifications:
+                - recipient: "+905551234567"
+                  channel: sms
+                  content: Flash sale starts now
+                  priority: high
+                - recipient: user@example.com
+                  channel: email
+                  content: Your weekly digest is ready
+                  priority: normal
+      responses:
+        '201':
+          description: Batch accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /notifications/{id}:
+    get:
+      summary: Get notification status by ID
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/NotificationID'
+      responses:
+        '200':
+          description: Notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /notifications/{id}/events:
+    get:
+      summary: Get delivery event history for a notification
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/NotificationID'
+      responses:
+        '200':
+          description: Delivery events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListEnvelope'
+  /notifications/{id}/cancel:
+    patch:
+      summary: Cancel a notification by ID
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/NotificationID'
+      responses:
+        '200':
+          description: Cancellation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelEnvelope'
+  /notifications/cancel:
+    post:
+      summary: Cancel multiple notifications
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+            example:
+              ids:
+                - notification-id-1
+                - notification-id-2
+      responses:
+        '200':
+          description: Cancellation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /notifications/dead-letter:
+    get:
+      summary: List notifications that exhausted retry attempts
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/Channel'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Dead-letter notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListEnvelope'
+  /batches/{id}:
+    get:
+      summary: Get notifications by batch ID
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/BatchID'
+      responses:
+        '200':
+          description: Batch notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEnvelope'
+  /metrics:
+    get:
+      summary: Runtime metrics
+      responses:
+        '200':
+          description: Metrics snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSnapshot'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  parameters:
+    TenantID:
+      name: X-Tenant-Id
+      in: header
+      required: false
+      description: Tenant identifier. Defaults to default.
+      schema:
+        type: string
+        default: default
+    NotificationID:
+      name: id
+      in: path
+      required: true
+      description: Notification ID
+      schema:
+        type: string
+    BatchID:
+      name: id
+      in: path
+      required: true
+      description: Batch ID
+      schema:
+        type: string
+    Status:
+      name: status
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [pending, scheduled, processing, delivered, failed, cancelled, dead_letter]
+    Channel:
+      name: channel
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [sms, email, push]
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+  schemas:
+    NotificationRequest:
+      type: object
+      required:
+        - recipient
+        - channel
+        - content
+      properties:
+        recipient:
+          type: string
+          example: "+905551234567"
+        channel:
+          type: string
+          enum: [sms, email, push]
+        content:
+          type: string
+          example: Flash sale starts now
+        priority:
+          type: string
+          enum: [high, normal, low]
+          default: normal
+        scheduledAt:
+          type: string
+          format: date-time
+        idempotencyKey:
+          type: string
+    NotificationBatchRequest:
+      type: object
+      required:
+        - notifications
+      properties:
+        notifications:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/NotificationRequest'
+        idempotencyKey:
+          type: string
+    CancelRequest:
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        batchId:
+          type: string
+        recipient:
+          type: string
+        channel:
+          type: string
+          enum: [sms, email, push]
+        content:
+          type: string
+        priority:
+          type: string
+          enum: [high, normal, low]
+        status:
+          type: string
+          enum: [pending, scheduled, processing, delivered, failed, cancelled, dead_letter]
+        attempts:
+          type: integer
+        maxAttempts:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+        providerMessageId:
+          type: string
+        lastError:
+          type: string
+    NotificationEnvelope:
+      type: object
+      properties:
+        notification:
+          $ref: '#/components/schemas/Notification'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    BatchEnvelope:
+      type: object
+      properties:
+        batchId:
+          type: string
+        count:
+          type: integer
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    NotificationListEnvelope:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    EventListEnvelope:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryEvent'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    CancelEnvelope:
+      type: object
+      properties:
+        cancelled:
+          type: integer
+        ids:
+          type: array
+          items:
+            type: string
+        meta:
+          $ref: '#/components/schemas/Meta'
+    HealthEnvelope:
+      type: object
+      properties:
+        status:
+          type: string
+        service:
+          type: string
+        uptimeMs:
+          type: integer
+        meta:
+          $ref: '#/components/schemas/Meta'
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        meta:
+          $ref: '#/components/schemas/Meta'
+    MetricsSnapshot:
+      type: object
+      additionalProperties: true
+    Meta:
+      type: object
+      properties:
+        requestId:
+          type: string
+        correlationId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    Pagination:
+      type: object
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        returned:
+          type: integer
+        hasMore:
+          type: boolean
+    DeliveryEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        notificationId:
+          type: string
+        batchId:
+          type: string
+        channel:
+          type: string
+          enum: [sms, email, push]
+        status:
+          type: string
+          enum: [pending, scheduled, processing, delivered, failed, cancelled, dead_letter]
+        attempt:
+          type: integer
+        reason:
+          type: string
+        nextAttemptAt:
+          type: string
+          format: date-time
+        providerStatus:
+          type: integer
+        providerMessageId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
