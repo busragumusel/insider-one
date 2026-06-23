@@ -37,6 +37,7 @@ jobs:
 
       - name: Run tests
         env:
+          CGO_ENABLED: "0"
           TEST_DATABASE_URL: postgres://insider:insider@localhost:5432/insider_one?sslmode=disable
           OTEL_ENABLED: "false"
         run: go test ./... -count=1

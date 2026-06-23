@@ -31,14 +31,14 @@ Swagger UI is available at `http://localhost:8080/swagger`, and the generated Op
 or locally:
 
 ```bash
-go test ./...
+CGO_ENABLED=0 go test ./...
 go run ./cmd/insider-one
 ```
 
 Run the full integration suite against PostgreSQL:
 
 ```bash
-TEST_DATABASE_URL=postgres://insider:insider@localhost:5432/insider_one?sslmode=disable go test ./...
+CGO_ENABLED=0 TEST_DATABASE_URL=postgres://insider:insider@localhost:5432/insider_one?sslmode=disable go test ./...
 ```
 
 If `TEST_DATABASE_URL` is not set, integration tests try to start a disposable PostgreSQL container with Testcontainers. If Docker is not running, those tests skip with a clear message.
@@ -46,7 +46,7 @@ If `TEST_DATABASE_URL` is not set, integration tests try to start a disposable P
 For a throughput check, run:
 
 ```bash
-TEST_DATABASE_URL=postgres://insider:insider@localhost:5432/insider_one?sslmode=disable go test ./internal/service -bench=BenchmarkCreateBatchHighThroughput -benchmem
+CGO_ENABLED=0 TEST_DATABASE_URL=postgres://insider:insider@localhost:5432/insider_one?sslmode=disable go test ./internal/service -bench=BenchmarkCreateBatchHighThroughput -benchmem
 ```
 
 ## Environment
@@ -146,7 +146,7 @@ With Docker Compose, traces flow from the app to the OpenTelemetry collector and
 GitHub Actions is configured in `.github/workflows/ci.yml`. It starts PostgreSQL and runs:
 
 ```bash
-go test ./... -count=1
+CGO_ENABLED=0 go test ./... -count=1
 ```
 
 ## Production Readiness
