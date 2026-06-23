@@ -27,7 +27,7 @@ func Load() Config {
 	databaseURL := getenv("DATABASE_URL", "postgres://insider:insider@localhost:5432/insider_one?sslmode=disable")
 	return Config{
 		DatabaseURL:        databaseURL,
-		ProviderURL:        getenv("PROVIDER_URL", "https://webhook.site/replace-with-your-uuid"),
+		ProviderURL:        getenv("PROVIDER_URL", "noop://accepted"),
 		SMSProviderURL:     getenv("SMS_PROVIDER_URL", ""),
 		EmailProviderURL:   getenv("EMAIL_PROVIDER_URL", ""),
 		PushProviderURL:    getenv("PUSH_PROVIDER_URL", ""),

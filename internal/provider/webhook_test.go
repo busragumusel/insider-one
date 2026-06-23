@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -35,6 +36,34 @@ func TestClientRoutesByChannel(t *testing.T) {
 	}
 	if !smsCalled || emailCalled {
 		t.Fatalf("unexpected routing smsCalled=%v emailCalled=%v", smsCalled, emailCalled)
+	}
+}
+
+func TestClientNoopProviderAcceptsDelivery(t *testing.T) {
+	client := New("noop://accepted")
+	resp, status, err := client.Send(context.Background(), DeliveryRequest{To: "+1", Channel: "sms", Content: "hello"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != http.StatusAccepted {
+		t.Fatalf("unexpected status: %d", status)
+	}
+	if resp.Status != "accepted" || resp.MessageID == "" {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestClientPlaceholderProviderUsesNoop(t *testing.T) {
+	client := New("https://webhook.site/replace-with-your-uuid")
+	resp, status, err := client.Send(context.Background(), DeliveryRequest{To: "+1", Channel: "sms", Content: "hello"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != http.StatusAccepted {
+		t.Fatalf("unexpected status: %d", status)
+	}
+	if !strings.HasPrefix(resp.MessageID, "noop-") {
+		t.Fatalf("expected noop message id, got %q", resp.MessageID)
 	}
 }
 

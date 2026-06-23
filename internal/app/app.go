@@ -64,6 +64,7 @@ func NewWithConfig(cfg config.Config, logger *slog.Logger) (*App, error) {
 		"email":   cfg.EmailProviderURL,
 		"push":    cfg.PushProviderURL,
 	})
+	logger.Info("provider configured", "default_provider_url", cfg.ProviderURL, "sms_provider_url", cfg.SMSProviderURL, "email_provider_url", cfg.EmailProviderURL, "push_provider_url", cfg.PushProviderURL)
 	serviceLayer := service.New(repo, providerClient, metrics, service.WithClaimLimit(cfg.WorkerClaimLimit), service.WithRateLimit(cfg.RateLimitPerSecond))
 	app := &App{
 		config:    cfg,

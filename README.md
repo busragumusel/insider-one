@@ -20,6 +20,8 @@ That layout keeps the API layer thin and makes the worker behavior explicit inst
 docker compose up --build
 ```
 
+By default the app uses `noop://accepted`, an in-process provider adapter that accepts deliveries without requiring webhook.site. Set `PROVIDER_URL` to a webhook.site URL when you want to exercise the external provider integration.
+
 Prometheus is available at `http://localhost:9090` and scrapes the OpenTelemetry collector, which receives metrics from the app over OTLP.
 
 Jaeger is available at `http://localhost:16686` and receives distributed traces from the same OpenTelemetry collector.
@@ -52,7 +54,7 @@ CGO_ENABLED=0 TEST_DATABASE_URL=postgres://insider:insider@localhost:5432/inside
 ## Environment
 
 - `DATABASE_URL`: PostgreSQL connection URL, default `postgres://insider:insider@localhost:5432/insider_one?sslmode=disable`
-- `PROVIDER_URL`: webhook.site URL, default placeholder
+- `PROVIDER_URL`: provider endpoint, default `noop://accepted` for demos without an external provider. Set this to a webhook.site URL to exercise the assessment provider integration.
 - `SMS_PROVIDER_URL`, `EMAIL_PROVIDER_URL`, `PUSH_PROVIDER_URL`: optional channel-specific provider URLs. When omitted, `PROVIDER_URL` is used for every channel.
 - `LISTEN_ADDR`: HTTP listen address, default `:8080`
 - `OTEL_ENABLED`: enable OpenTelemetry export, default `true`

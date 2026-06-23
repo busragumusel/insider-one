@@ -3,9 +3,12 @@ package provider
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -43,6 +46,10 @@ type WebhookSender struct {
 	httpClient *http.Client
 }
 
+type NoopSender struct {
+	channel string
+}
+
 func New(endpoint string) *Client {
 	return NewWithEndpoints(map[string]string{
 		"default": endpoint,
@@ -59,9 +66,25 @@ func NewWithEndpoints(endpoints map[string]string) *Client {
 		if endpoint == "" {
 			endpoint = endpoints["default"]
 		}
-		senders[channel] = NewWebhookSender(channel, endpoint)
+		senders[channel] = NewSender(channel, endpoint)
 	}
 	return &Client{senders: senders}
+}
+
+func NewSender(channel, endpoint string) Sender {
+	if isNoopEndpoint(endpoint) {
+		return NewNoopSender(channel)
+	}
+	return NewWebhookSender(channel, endpoint)
+}
+
+func isNoopEndpoint(endpoint string) bool {
+	endpoint = strings.TrimSpace(endpoint)
+	return endpoint == "" ||
+		strings.EqualFold(endpoint, "noop://accepted") ||
+		strings.Contains(endpoint, "replace-with-your-uuid") ||
+		strings.Contains(endpoint, "YOUR-UUID") ||
+		strings.Contains(endpoint, "YOUR-REAL-UUID")
 }
 
 func NewWebhookSender(channel, endpoint string) *WebhookSender {
@@ -70,6 +93,10 @@ func NewWebhookSender(channel, endpoint string) *WebhookSender {
 		endpoint:   endpoint,
 		httpClient: &http.Client{Timeout: 5 * time.Second},
 	}
+}
+
+func NewNoopSender(channel string) *NoopSender {
+	return &NoopSender{channel: channel}
 }
 
 func (c *Client) Send(ctx context.Context, req DeliveryRequest) (DeliveryResponse, int, error) {
@@ -132,4 +159,35 @@ func (s *WebhookSender) Send(ctx context.Context, req DeliveryRequest) (Delivery
 		attribute.String("provider.status", payload.Status),
 	)
 	return payload, resp.StatusCode, nil
+}
+
+func (s *NoopSender) Send(ctx context.Context, req DeliveryRequest) (DeliveryResponse, int, error) {
+	_, span := tracer.Start(ctx, "provider.noop_send",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("notification.channel", req.Channel),
+			attribute.String("provider.channel", s.channel),
+			attribute.String("provider.endpoint", "noop://accepted"),
+		),
+	)
+	defer span.End()
+
+	payload := DeliveryResponse{
+		MessageID: "noop-" + randomID(),
+		Status:    "accepted",
+		Timestamp: time.Now().UTC(),
+	}
+	span.SetAttributes(
+		attribute.String("provider.message_id", payload.MessageID),
+		attribute.String("provider.status", payload.Status),
+	)
+	return payload, http.StatusAccepted, nil
+}
+
+func randomID() string {
+	var bytes [16]byte
+	if _, err := rand.Read(bytes[:]); err != nil {
+		return time.Now().UTC().Format("20060102150405.000000000")
+	}
+	return hex.EncodeToString(bytes[:])
 }
